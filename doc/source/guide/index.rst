@@ -9,6 +9,9 @@ Welcome to the SunPy User Guide!
    
    installation/index
    tutorial
+   plotting
+   vso
+   helioviewer
    maps
    hek
    spectra
