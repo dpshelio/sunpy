@@ -8,32 +8,37 @@ __authors__ = ["Keith Hughitt, Steven Christe"]
 __email__ = "keith.hughitt@nasa.gov"
 
 import os
-import pyfits
+from copy import copy
+import warnings
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.interpolation
 from matplotlib import patches
 from matplotlib import colors
 from matplotlib import cm
-from copy import copy
+import pyfits
+
 try:
     import sunpy.image.Crotate as Crotate
 except ImportError:
-    print("C extension sunpy.image.Crotate cannot be found")
-from sunpy.wcs import wcs as wcs
-from sunpy.util.util import toggle_pylab
+    pass
+
+import sunpy.wcs as wcs
+from sunpy.util import toggle_pylab, to_signed
 from sunpy.io import read_file, read_file_header
 from sunpy.sun import constants
-from sunpy.time import parse_time
-from sunpy.time import is_time
-from sunpy.util.util import to_signed
-from sunpy.image.rescale import resample, reshape_image_to_4d_superpixel
+from sunpy.time import parse_time, is_time
+from sunpy.image.rescale import reshape_image_to_4d_superpixel
+from sunpy.image.rescale import resample as sunpy_image_resample
 
 from sunpy.util.cond_dispatch import ConditionalDispatch
 from sunpy.util.create import Parent
 
+__all__ = ['Map']
+
 """
-TODO
+TODO (now an issue in https://github.com/sunpy/sunpy/issues/396)
 ----
 * Automatically include Map docstring when displaying help for subclasses?
 
@@ -63,10 +68,6 @@ class Map(np.ndarray, Parent):
         Dictionary representation of the original FITS header
     carrington_longitude : str
         Carrington longitude (crln_obs)
-    center : dict
-        X and Y coordinate of the center of the map in units.
-        Usually represents the offset between the center of the Sun and the
-        center of the map.
     cmap : matplotlib.colors.Colormap
         A Matplotlib colormap to be applied to the data
     coordinate_system : dict
@@ -87,7 +88,7 @@ class Map(np.ndarray, Parent):
         Instrument name
     measurement : str, int
         Measurement name. In some instances this is the wavelength of image.
-    name: str
+    name : str
         Human-readable description of map-type
     nickname : str
         An abbreviated human-readable description of the map-type; part of
@@ -397,8 +398,9 @@ Dimension:\t [%d, %d]
         if not axes:
             axes = plt.gca()
         
-        circ = patches.Circle([0, 0], radius=self.rsun_arcseconds, fill=False,
-                              color='white')
+        circ = patches.Circle([0, 0],
+                                  radius=self.rsun_arcseconds, fill=False,
+                                  color='white',zorder=100)
         axes.add_artist(circ)
         
         return axes
@@ -423,7 +425,6 @@ Dimension:\t [%d, %d]
             axes = plt.gca()
 
         x, y = self.pixel_to_data()
-        rsun = self.rsun_meters
         dsun = self.dsun
 
         b0 = self.heliographic_latitude
@@ -432,7 +433,7 @@ Dimension:\t [%d, %d]
 
         #TODO: This function could be optimized. Does not need to convert the entire image
         # coordinates
-        lon_self, lat_self = wcs.convert_hpc_hg(rsun, dsun, units[0], units[1], b0, l0, x, y)
+        lon_self, lat_self = wcs.convert_hpc_hg(x, y, b0_deg=b0, l0_deg=l0, dsun_meters=dsun, angle_units=units[0])
         # define the number of points for each latitude or longitude line
         num_points = 20
         
@@ -455,12 +456,11 @@ Dimension:\t [%d, %d]
         for lat in hg_latitude_deg:
             hg_latitude_deg_mesh, hg_longitude_deg_mesh = np.meshgrid(
                 lat * np.ones(num_points), hg_longitude_deg)
-            x, y = wcs.convert_hg_hpc(self.rsun_meters,
-                                      self.dsun, self.heliographic_latitude,
-                                      self.heliographic_longitude,
-                                      hg_longitude_deg_mesh,
-                                      hg_latitude_deg_mesh, units='arcsec')
-            axes.plot(x, y, color='white', linestyle='dotted')
+            x, y = wcs.convert_hg_hpc(hg_longitude_deg_mesh, hg_latitude_deg_mesh, 
+                                      b0_deg=self.heliographic_latitude,
+                                      l0_deg=self.heliographic_longitude,
+                                      dsun_meters = self.dsun, angle_units='arcsec')
+            axes.plot(x, y, color='white', linestyle='dotted',zorder=100)
             
         hg_longitude_deg = np.arange(lon_range[0], lon_range[1]+grid_spacing, grid_spacing)
         hg_latitude_deg = np.linspace(lat_range[0], lat_range[1], num=num_points)
@@ -469,12 +469,11 @@ Dimension:\t [%d, %d]
         for lon in hg_longitude_deg:
             hg_longitude_deg_mesh, hg_latitude_deg_mesh = np.meshgrid(
                 lon * np.ones(num_points), hg_latitude_deg)
-            x, y = wcs.convert_hg_hpc(self.rsun_meters,
-                                      self.dsun, self.heliographic_latitude,
-                                      self.heliographic_longitude,
-                                      hg_longitude_deg_mesh,
-                                      hg_latitude_deg_mesh, units='arcsec')
-            axes.plot(x, y, color='white', linestyle='dotted')
+            x, y = wcs.convert_hg_hpc(hg_longitude_deg_mesh, hg_latitude_deg_mesh, 
+                                      b0_deg=self.heliographic_latitude,
+                                      l0_deg=self.heliographic_longitude,
+                                      dsun_meters = self.dsun, angle_units='arcsec')
+            axes.plot(x, y, color='white', linestyle='dotted',zorder=100)
             
         axes.set_ylim(self.yrange)
         axes.set_xlim(self.xrange)
@@ -537,7 +536,7 @@ Dimension:\t [%d, %d]
         crpix = np.array([self.reference_pixel.get('x'), self.reference_pixel.get('y')])
         crval = np.array([self.reference_coordinate.get('x'), self.reference_coordinate.get('y')])
         coordinate_system = [self.coordinate_system.get('x'), self.coordinate_system.get('y')]
-        x,y = wcs.convert_pixel_to_data(width, height, scale[0], scale[1], crpix[0], crpix[1], crval[0], crval[1], coordinate_system[0], x = x, y = y)
+        x,y = wcs.convert_pixel_to_data(self.shape, scale, crpix, crval, x = x, y = y)
 
         return x, y
 
@@ -635,8 +634,8 @@ Dimension:\t [%d, %d]
         #   coordinates in a Map are at pixel centers
 
         # Make a copy of the original data and perform resample
-        data = resample(np.asarray(self).copy().T, dimensions,
-                        method, center=True)
+        data = sunpy_image_resample(np.asarray(self).copy().T, dimensions,
+                                    method, center=True)
 
         # Update image scale and number of pixels
         header = self._original_header.copy()
@@ -763,6 +762,14 @@ Dimension:\t [%d, %d]
         Returns
         -------
         New rotated, rescaled, translated map
+        
+        Notes
+        -----
+        Apart from interpolation='spline' all other options use a compiled 
+        C-API extension. If for some reason this is not compiled correctly this
+        routine will fall back upon the scipy implementation of order = 3.
+        For more infomation see:
+            http://sunpy.readthedocs.org/en/latest/guide/troubleshooting.html#crotate-warning
         """
         
         #Interpolation parameter Sanity
@@ -819,7 +826,11 @@ Dimension:\t [%d, %d]
         else:
             #Use C extension Package
             if not 'Crotate' in globals():
-                raise ValueError("You do not have the C extension sunpy.image.Crotate")
+                warnings.warn(""""The C extension sunpy.image.Crotate is not 
+installed, falling back to the interpolation='spline' of order=3""" ,Warning)
+                data = scipy.ndimage.interpolation.affine_transform(image, rsmat,
+                           offset=offs, order=3, mode='constant',
+                           cval=missing)
             #Set up call parameters depending on interp type.
             if interpolation == 'nearest':
                 interp_type = Crotate.NEAREST
@@ -1019,7 +1030,7 @@ Dimension:\t [%d, %d]
         return ret
         
     @toggle_pylab
-    def peek(self, draw_limb=True, draw_grid=False, gamma=None,
+    def peek(self, draw_limb=False, draw_grid=False, gamma=None,
                    colorbar=True, basic_plot=False, **matplot_args):
         """Displays the map in a new figure
 
@@ -1063,7 +1074,7 @@ Dimension:\t [%d, %d]
         
         if draw_limb:
             self.draw_limb(axes=axes)
-        
+            
         if isinstance(draw_grid, bool):
             if draw_grid:
                 self.draw_grid(axes=axes)

@@ -23,13 +23,14 @@ from scipy.optimize import leastsq
 from scipy.ndimage import gaussian_filter1d
 
 from sunpy.time import parse_time
-from sunpy.util.util import (
-    findpeaks, delta, polyfun_at, minimal_pairs, find_next
-)
+from sunpy.util import polyfun_at, minimal_pairs
 from sunpy.util.cond_dispatch import ConditionalDispatch, run_cls
+from sunpy.util.net import download_file
+
 from sunpy.spectra.spectrogram import LinearTimeSpectrogram, REFERENCE
 
-from sunpy.net.util import download_file
+
+__all__ = ['CallistoSpectrogram']
 
 TIME_STR = "%Y%m%d%H%M%S"
 DEFAULT_URL = 'http://soleil.i4ds.ch/solarradio/data/2002-20yy_Callisto/'
@@ -106,8 +107,8 @@ class CallistoSpectrogram(LinearTimeSpectrogram):
     """ Classed used for dynamic spectra coming from the Callisto network.
     
     
-    Additional (not inherited) parameters
-    -------------------------------------
+    Attributes
+    ----------
     header : pyfits.Header
         main header of the FITS file
     axes_header : pyfits.Header
@@ -231,7 +232,7 @@ class CallistoSpectrogram(LinearTimeSpectrogram):
             try:
                 fq = axes.data['frequency']
             except KeyError:
-                fq = None
+                fq = None 
         
         if tm is not None:
             # Fix dimensions (whyever they are (1, x) in the first place)
@@ -249,7 +250,7 @@ class CallistoSpectrogram(LinearTimeSpectrogram):
 
         content = header["CONTENT"]
         instruments = set([header["INSTRUME"]])
-        
+    
         return cls(
             data, time_axis, freq_axis, start, end, t_init, t_delt,
             t_label, f_label, content, instruments, 
@@ -264,7 +265,7 @@ class CallistoSpectrogram(LinearTimeSpectrogram):
         # Because of how object creation works, there is no avoiding
         # unused arguments in this case.
         # pylint: disable=W0613
-        
+
         super(CallistoSpectrogram, self).__init__(
             data, time_axis, freq_axis, start, end,
             t_init, t_delt, t_label, f_label,
