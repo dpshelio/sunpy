@@ -39,7 +39,7 @@ def install(setup): #pylint: disable=W0621
         sourcefiles = [join(cwd, 'sunpy', 'image', 'src', 'rot_extn.c'),
                        join(cwd, 'sunpy', 'image', 'src', 'transform', 'aff_tr.c')]
         libs = ['m']
-        # -ON for compile optimise 
+        # -ON for compile optimise
         gcc_args = ['-std=c99', '-O3']
         # gcc_args = ['-std=c99']
 
@@ -51,6 +51,26 @@ def install(setup): #pylint: disable=W0621
                             include_dirs =
                             [np.get_include(), join(cwd, 'sunpy', 'image', 'src')]
                             )
+
+        module_ana = 'sunpy.io._pyana'
+        sourcefiles_ana = [join(cwd, 'sunpy', 'io', 'src', 'ana', 'anacompress.c'),
+                       join(cwd, 'sunpy', 'io', 'src', 'ana', 'anadecompress.c'),
+                       join(cwd, 'sunpy', 'io', 'src', 'ana', 'anarw.c'),
+                       join(cwd, 'sunpy', 'io', 'src', 'ana', 'testrw.c'),
+                       join(cwd, 'sunpy', 'io', 'src', 'ana', '_pyana.c')]
+
+        ana = Extension(module_ana,
+                            sources = sourcefiles_ana,
+                            libraries = libs,
+                            extra_compile_args = gcc_args,
+                            include_dirs =
+                            [np.get_include(), join(cwd, 'sunpy', 'io', 'src')]
+                            )
+    ext_modules = []
+    if 'crotate' in locals():
+        ext_modules.append(crotate)
+    if 'ana' in locals():
+        ext_modules.append(ana)
 
     setup(
 	author="Steven Christe, Matt Earnshaw,  Russell Hewett, Keith Hughitt, Jack Ireland, Florian Mayer, Stuart Mumford,  Albert Shih, David Perez-Suarez et. al",
@@ -69,6 +89,7 @@ def install(setup): #pylint: disable=W0621
  #           'suds',
             'pandas>=0.10.0',
             'matplotlib>=1.1',
+            'glymur>=0.5.5',
  #           'beautifulsoup4',
         ],
         license="BSD",
@@ -82,8 +103,8 @@ def install(setup): #pylint: disable=W0621
         provides=['sunpy'],
         url="http://www.sunpy.org/",
         use_2to3=True,
-        version="0.3.0",
-        ext_modules = [crotate] if 'crotate' in locals() else []
+        version="0.3.1",
+        ext_modules = ext_modules
     )
 
 if __name__ == '__main__':
