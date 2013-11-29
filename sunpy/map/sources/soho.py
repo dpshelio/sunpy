@@ -31,7 +31,9 @@ def _dsunAtSoho(date, rad_d, rad_1au = None):
     """
     if not rad_1au:
         rad_1au = sun.solar_semidiameter_angular_size(date)
-    return  sun.sunearth_distance(date) * constants.au * (rad_1au / rad_d)
+    dsun = sun.sunearth_distance(date) * constants.au * (rad_1au / rad_d)
+    #return scalar value not astropy.quantity
+    return dsun.value
 
 
 class EITMap(GenericMap):
@@ -63,7 +65,7 @@ class EITMap(GenericMap):
         """Determines if header corresponds to an EIT image"""
         return header.get('instrume') == 'EIT'
 
-    def norm(self):
+    def _get_norm(self):
         """Returns a Normalize object to be used with EIT data"""
         # byte-scaled images have most likely already been scaled
         if self.dtype == np.uint8:
