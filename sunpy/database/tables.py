@@ -169,7 +169,7 @@ class DatabaseEntry(Base):
     and each instance represents one record that *can* be saved in the
     database.
 
-    Attributes
+    Parameters
     ----------
     id : int
         A unique ID number. By default it is None, but automatically set to the
@@ -211,7 +211,7 @@ class DatabaseEntry(Base):
     fits_header_entries : list
         A list of ``FitsHeaderEntry`` instances.
     tags : list
-        A list of ``Tag`` instances. Use :ref:`sunpy.database.Database.tag` to
+        A list of ``Tag`` instances. Use `sunpy.database.Database.tag` to
         add a new tag or multiple tags to a specific entry.
 
     """
@@ -286,7 +286,12 @@ class DatabaseEntry(Base):
             if default_waveunit is not None:
                 unit = Unit(default_waveunit)
         else:
-            unit = Unit(wave.waveunit)
+            # some query response blocks store the unit "kev",
+            # but AstroPy only understands "keV". See issue #766.
+            waveunit = wave.waveunit
+            if waveunit == "kev":
+                waveunit = "keV"
+            unit = Unit(waveunit)
         if wave.wavemin is None:
             wavemin = None
         else:
@@ -599,6 +604,17 @@ def display_entries(database_entries, columns):
                 row.append('Yes' if entry.starred else 'No')
             elif col == 'tags':
                 row.append(', '.join(imap(str, entry.tags)) or 'N/A')
+            # do not display microseconds in datetime columns
+            elif col in (
+                    'observation_time_start',
+                    'observation_time_end',
+                    'download_time'):
+                time = getattr(entry, col, None)
+                if time is None:
+                    formatted_time = 'N/A'
+                else:
+                    formatted_time = time.strftime('%Y-%m-%d %H:%M:%S')
+                row.append(formatted_time)
             else:
                 row.append(str(getattr(entry, col) or 'N/A'))
         if not row:
