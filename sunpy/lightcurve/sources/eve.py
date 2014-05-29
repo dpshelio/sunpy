@@ -103,21 +103,6 @@ class EVELightCurve(LightCurve):
         figure.show()
         return figure
 
-    @staticmethod
-    def _get_default_uri():
-        """Loads latest level 0CS if no other data is specified"""
-        return "http://lasp.colorado.edu/eve/data_access/evewebdata/quicklook/L0CS/LATEST_EVE_L0CS_DIODES_1m.txt"
-
-    @staticmethod
-    def _get_url_for_date(date):
-        """Returns a URL to the EVE data for the specified date
-
-            @NOTE: currently only supports downloading level 0 data
-            .TODO: No data available prior to 2010/03/01!
-        """
-        base_url = 'http://lasp.colorado.edu/eve/data_access/evewebdata/quicklook/L0CS/SpWx/'
-        return base_url + date.strftime('%Y/%Y%m%d') + '_EVE_L0CS_DIODES_1m.txt'
-
     @classmethod
     def _parse_csv(cls, filepath):
         """Parses an EVE CSV file."""
@@ -190,5 +175,10 @@ class EVELightCurve(LightCurve):
         if is_missing_data :   #If missing data specified in header
             data[data == float(missing_data_val)] = numpy.nan
 
-        # data.columns = fields
-        return meta, data
+        #data.columns = fields
+        return data, meta
+
+    @classmethod
+    def _is_datasource_for(cls, data, meta, source=None):
+        if source is not None:
+            return source.lower() == 'eve'
