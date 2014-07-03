@@ -152,9 +152,9 @@ def test_wave_toangstrom():
     assert int(w.min.to(u.AA, u.equivalencies.spectral()).value) == 199
 
     with pytest.raises(ValueError) as excinfo:
-        va.Wave(10 * u.deg_C, 23 * u.deg_C)
+        va.Wave(10 * u.g, 23 * u.g)
     # Python2.6 does not like excinfo.value.message
-    assert str(excinfo.value) == "'deg_C' is not a spectral supported unit"
+    assert str(excinfo.value) == "'g' is not a spectral supported unit"
 
 
 def test_time_xor():

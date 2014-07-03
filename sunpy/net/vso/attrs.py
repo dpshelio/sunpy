@@ -75,7 +75,7 @@ class Wave(Attr, _Range):
                 )
             self.unit = unit
         except NameError:
-            raise ValueError("'{}' is not a spectral supported unit".format(wavemin.unit))
+            raise ValueError("'{0}' is not a spectral supported unit".format(wavemin.unit))
         Attr.__init__(self)
         _Range.__init__(self, self.min, self.max, self.__class__)
     
