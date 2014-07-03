@@ -65,6 +65,12 @@ Latest
  * Added new sample data file, an AIA cutout file.
  * Moved documentation build directory to doc/build
 
+ *Unified Downloader:
+  *Custom Light Curve clients added for downloading files:(EVE,LYRA,NORH,NOAA,RHESSI)
+  *VSO module compatability
+  *Factory based implementation of UnifiedDownloader
+  *VSO esque query style
+  
 0.5.0
 -----
 
