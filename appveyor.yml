@@ -40,5 +40,6 @@ build: false
 
 test_script:
   - "python setup.py develop"
-  - "py.test -n 8"
+  # Build env has 1 Virtual core, so double thread for a small boost.
+  - "py.test -n 2"
 
