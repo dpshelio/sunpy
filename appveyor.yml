@@ -33,7 +33,6 @@ install:
     - "conda install -q --yes numpy scipy astropy matplotlib pandas requests beautiful-soup sqlalchemy scikit-image pytest"
     # Install non-conda packages
     - "pip install suds"
-    - "pip install pytest-xdist"
 
 # Not a .NET project, we build SunPy in the install step instead
 build: false
@@ -41,5 +40,5 @@ build: false
 test_script:
   - "python setup.py develop"
   # Build env has 1 Virtual core, so double thread for a small boost.
-  - "py.test -n 2"
+  - "py.test"
 
