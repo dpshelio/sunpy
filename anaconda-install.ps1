@@ -54,12 +54,12 @@ function InstallMiniconda ($python_version, $architecture, $python_home) {
     Write-Host "Installing" $filepath "to" $python_home
     $args = "/InstallationType=AllUsers /S /AddToPath=1 /RegisterPython=1 /D=" + $python_home
     Write-Host $filepath $args
-    Start-Process $filepath $args
-    if (Test-Path $python_home) {
+    Start-Process -FilePath $filepath -ArgumentList $args -Wait -Passthru
+    #Start-Sleep -s 15
+    if (Test-Path C:\conda) {
         Write-Host "Miniconda $python_version ($architecture) installation complete"
     } else {
         Write-Host "Failed to install Python in $python_home"
-        Get-Content -Path $install_log
         Exit 1
     }
 }

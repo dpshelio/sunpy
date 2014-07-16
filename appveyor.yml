@@ -2,7 +2,7 @@
 # Windows
 
 environment:
-  global:
+    # global:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
@@ -38,13 +38,13 @@ test_script:
   # Change to a non-source folder to make sure we run the tests on the
   # installed library.
   #- "SET PROJECT_DIR=%CD%"
-  #- "cd C:\\"
+  - "cd C:\\"
 
   # Skip joblib tests that require multiprocessing as they are prone to random
   # slow down
   #- "python -c \"import nose; nose.main()\" -v -s --with-noseexclude --exclude-test-file=%PROJECT_DIR%/continuous_integration/exclude_joblib_mp.txt sklearn"
 
-artifacts:
+  #artifacts:
   # Archive the generated wheel package in the ci.appveyor.com build report.
   #- path: dist\*
 
