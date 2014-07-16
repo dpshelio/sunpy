@@ -20,10 +20,11 @@ install:
   
     # Install the build and runtime dependencies of the project.
     - "conda update --yes conda"
+    # Create a conda environment using the astropy bonus packages
     - "conda create --yes -n test -c astropy-ci-extras python=%PYTHON_VERSION%"
-    - "conda install --yes numpy scipy matplotlib pandas requests beautiful-soup sqlalchemy pytest"
-    - "conda update --yes astropy"
-
+    - "source activate test"
+    # Install all of SunPy's dependancies that are conda packages
+    - "conda install --yes numpy scipy astropy matplotlib pandas requests beautiful-soup sqlalchemy pytest"
     # Install non-conda packages
     - "pip install suds"
     - "pip install sunpy"
