@@ -22,7 +22,7 @@ install:
     - "conda update --yes conda"
     # Create a conda environment using the astropy bonus packages
     - "conda create -q --yes -n test -c astropy-ci-extras python=%PYTHON_VERSION%"
-    - "source activate test"
+    - "activate test"
     # Install all of SunPy's dependancies that are conda packages
     - "conda install -q --yes numpy scipy astropy matplotlib pandas requests beautiful-soup sqlalchemy pytest"
     # Install non-conda packages
