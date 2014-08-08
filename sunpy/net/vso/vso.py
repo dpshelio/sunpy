@@ -569,14 +569,8 @@ class VSOClient(object):
             "{source}/{instrument}/{time.start}/{file}".
 
         methods : {list of str}
-            Download methods, defaults to URL-FILE_Rice then URL-FILE.
-            Methods are a concatenation of one PREFIX followed by any number of
-            SUFFIXES i.e. `PREFIX-SUFFIX_SUFFIX2_SUFFIX3`.
-            The full list of `PREFIXES <http://sdac.virtualsolar.org/cgi/show_details?keyword=METHOD_PREFIX>`_
-            and `SUFFIXES <http://sdac.virtualsolar.org/cgi/show_details?keyword=METHOD_SUFFIX>`_
-            are listed on the VSO site.
-
-        downloader : sunpy.net.downloader.Downloader
+            Methods acceptable to user.
+        downloader : sunpy.net.downloader.FileDownloader
             Downloader used to download the data.
 
         site : str
@@ -604,7 +598,7 @@ class VSOClient(object):
         >>> res = get(qr).wait() # doctest:+SKIP
         """
         if downloader is None:
-            downloader = download.Downloader()
+            downloader = download.FileDownloader()
             downloader.init()
             res = Results(
                 lambda _: downloader.stop(), 1,
