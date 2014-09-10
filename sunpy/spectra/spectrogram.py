@@ -97,7 +97,7 @@ class _LinearView(object):
     ----------
     arr : Spectrogram
         Spectrogram to linearize.
-    delt : float
+    delt : `~astropy.units.Quantity` instance
         Delta between frequency channels in linearized spectrogram. Defaults to
         (minimum delta / 2.) because of the Shannon sampling theorem.
     """
@@ -106,7 +106,8 @@ class _LinearView(object):
         if delt is None:
             # Nyquist–Shannon sampling theorem
             delt = _min_delt(arr.freq_axis) / 2.
-
+        elif not(isinstance(delt, u.Quantity)):
+            raise ValueError("delt must be astropy Quantities")
         self.delt = delt
 
         midpoints = (self.arr.freq_axis[:-1] + self.arr.freq_axis[1:]) / 2
@@ -115,7 +116,7 @@ class _LinearView(object):
 
         self.freq_axis = np.arange(
             self.arr.freq_axis[0].value, self.arr.freq_axis[-1].value, -self.delt.value
-        )
+        ) * self.arr.freq_axis.unit
         self.time_axis = self.arr.time_axis
 
         self.shape = (len(self), arr.data.shape[1])
@@ -381,7 +382,7 @@ class Spectrogram(Parent):
             return ""
         return self.format_time(
             self.start + datetime.timedelta(
-                seconds=float(self.time_axis[x])
+                seconds=self.time_axis[x].value  #TODO: convert to astropy.Time
             )
         )
 
@@ -438,20 +439,17 @@ class Spectrogram(Parent):
         """
         # [] as default argument is okay here because it is only read.
         # pylint: disable=W0102,R0914
-        if not(isinstance(vmin, u.Quantity) and isinstance(vmax, u.Quantity)):
-            raise ValueError("Must be astropy Quantities")
         if linear:
             delt = yres
-            if delt is not None:
+            if delt is not None: 
                 delt = max(
-                    (self.freq_axis[0] - self.freq_axis[-1]).value / (yres - 1),
-                    _min_delt(self.freq_axis).value / 2.
+                    (self.freq_axis[0] - self.freq_axis[-1]) / (yres - 1),
+                    _min_delt(self.freq_axis)/ 2.
                 )
-                delt = float(delt)
 
             data = _LinearView(self.clip_values(vmin, vmax), delt)
             freqs = np.arange(
-                self.freq_axis[0].value, self.freq_axis[-1].value, -data.delt
+                self.freq_axis[0].value, self.freq_axis[-1].value, -data.delt.value
             )
         else:
             data = np.array(self.clip_values(vmin, vmax))
@@ -485,7 +483,7 @@ class Spectrogram(Parent):
 
         if linear:
             # Start with a number that is divisible by 5.
-            init = (self.freq_axis[0].value % 5) / data.delt
+            init = (self.freq_axis[0].value % 5) / data.delt.value
             nticks = 15.
             # Calculate MHz difference between major ticks.
             dist = (self.freq_axis[0] - self.freq_axis[-1]).value / nticks
@@ -497,21 +495,21 @@ class Spectrogram(Parent):
 
             ya.set_major_locator(
                 IndexLocator(
-                    dist / data.delt, init
+                    dist / data.delt.value, init
                 )
             )
             ya.set_minor_locator(
                 IndexLocator(
-                    dist / data.delt / 10, init
+                    dist / data.delt.value / 10, init
                 )
             )
             def freq_fmt(x, pos):
                 # This is necessary because matplotlib somehow tries to get
                 # the mid-point of the row, which we do not need here.
                 x = x + 0.5
-                return self.format_freq(self.freq_axis[0].value - x * data.delt)
+                return self.format_freq(self.freq_axis[0].value - x * data.delt.value)
         else:
-            freq_fmt = _list_formatter(freqs, self.format_freq)
+            freq_fmt = _list_formatter(freqs, self.format_freq) # TODO: How does this behave with quantities?
             ya.set_major_locator(MaxNLocator(integer=True, steps=[1, 5, 10]))
 
         ya.set_major_formatter(
@@ -690,16 +688,17 @@ class Spectrogram(Parent):
         """
         # pylint: disable=E1101
         if vmin is None:     
-            vmin = int(self.data.min())
+            vmin = self.data.min()
 
         if vmax is None:
-            vmax = int(self.data.max())
+            vmax = self.data.max()
+
         if not(isinstance(vmin, u.Quantity) or isinstance(vmax, u.Quantity)):
             raise ValueError("must be astropy quantities")        
 
         return self._with_data(self.data.clip(vmin, vmax, out))
 
-    def rescale(self, vmin=0 * u.ct, vmax=1 * u.ct, 
+    def rescale(self, vmin=0 * u.ct, vmax=1 * u.ct, #FixMe: not all may be u.ct
                 dtype=np.dtype('float32')):
         u"""
         Rescale intensities to [min\_, max\_].

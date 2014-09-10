@@ -261,6 +261,12 @@ class CallistoSpectrogram(LinearTimeSpectrogram):
         content = header["CONTENT"]
         instruments = set([header["INSTRUME"]])
 
+        # CALLISTO data does not have proper units - they are called digits
+        # the closer to digits are counts: u.count
+        if header["BUNIT"] == 'digits':
+            data = data * u.count
+        else:
+            data = data * u.Unit(header["BUNIT"])
         return cls(
             data, time_axis * u.second, freq_axis * u.MHz, start, end, t_init, t_delt * u.second,
             t_label, f_label, content, instruments, 
