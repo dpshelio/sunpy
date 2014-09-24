@@ -439,7 +439,7 @@ class Spectrogram(Parent):
                 self.freq_axis[0], self.freq_axis[-1], -data.delt
             )
         else:
-            data = np.array(self.clip_values(vmin, vmax))
+            data = np.array(self.clip_values(vmin, vmax).data)
             freqs = self.freq_axis
 
         figure = plt.gcf()
