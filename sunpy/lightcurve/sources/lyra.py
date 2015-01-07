@@ -14,9 +14,6 @@ import pandas
 from sunpy.lightcurve import LightCurve
 from sunpy.time import parse_time
 
-from sunpy import config
-TIME_FORMAT = config.get("general", "time_format")
-
 __all__ = ['LYRALightCurve']
 
 class LYRALightCurve(LightCurve):
