@@ -28,11 +28,6 @@ def test_get_url_for_time_range(timerange, url_start, url_end):
     assert urls[0] == url_start
     assert urls[-1] == url_end
 
-def test_fail_get_url_for_time_range():
-    urls = LCClient._get_url_for_timerange(None)
-    assert isinstance(urls, list)
-    assert len(urls) == 0
-
 def test_get_url_for_date():
     url = LCClient._get_url_for_date(datetime.date(2011,3,14))
     assert url =='ftp://anonymous:mozilla@example.com@solar-pub.nao.ac.jp/pub/nsro/norh/data/tcx/2011/03/tca110314'
