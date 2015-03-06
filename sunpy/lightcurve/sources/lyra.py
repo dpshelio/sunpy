@@ -2,17 +2,19 @@
 """Provides programs to process and analyze PROBA2/LYRA data."""
 from __future__ import absolute_import
 
-import datetime
-import urlparse
 import sys
+import datetime
 from collections import OrderedDict
 
+import pandas
 from matplotlib import pyplot as plt
 from astropy.io import fits
-import pandas
 
 from sunpy.lightcurve import LightCurve
 from sunpy.time import parse_time
+
+from sunpy import config
+TIME_FORMAT = config.get("general", "time_format")
 
 __all__ = ['LYRALightCurve']
 
