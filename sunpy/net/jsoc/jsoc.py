@@ -15,7 +15,8 @@ from astropy.utils.misc import isiterable
 
 from sunpy import config
 from sunpy.time import parse_time, TimeRange
-from sunpy.net.download import Downloader, Results
+from sunpy.net.download import Downloader
+from sunpy.net.vso.vso import Results
 from sunpy.net.attr import and_
 from sunpy.net.jsoc.attrs import walker
 
@@ -212,7 +213,7 @@ class JSOCClient(object):
 
         return return_results
 
-    def request_data(self, jsoc_response, **kwargs):
+    def request_data(self, jsoc_response, notify='', **kwargs):
         """
         Request that JSOC stages the data for download.
 
@@ -220,6 +221,9 @@ class JSOCClient(object):
         ----------
         jsoc_response : JSOCResponse object
             The results of a query
+
+        notify : `str`
+            An email address for the query
 
         Returns
         -------
@@ -234,7 +238,7 @@ class JSOCClient(object):
             raise TypeError(warn_message.format(kwargs.keys()))
 
         # Do a multi-request for each query block
-        responses = self._multi_request(**jsoc_response.query_args)
+        responses = self._multi_request(notify, **jsoc_response.query_args)
         for i, response in enumerate(responses):
             if response.status_code != 200:
                 warn_message = "Query {0} retuned code {1}"
@@ -342,7 +346,8 @@ class JSOCClient(object):
         jsoc_response.requestIDs = requestIDs
         time.sleep(sleep/2.)
 
-        r = None   # Needed when all requests ends in the else branch
+        r = Results(lambda x: None, done=lambda maps: [v['path'] for v in maps.values()])
+
         while requestIDs:
             for i, request_id in enumerate(requestIDs):
                 u = self._request_status(request_id)
@@ -411,7 +416,7 @@ class JSOCClient(object):
         # A Results object tracks the number of downloads requested and the
         # number that have been completed.
         if results is None:
-            results = Results(lambda _: downloader.stop())
+            results = Results(lambda x: None, done=lambda maps: [v['path'] for v in maps.values()])
 
         urls = []
         for request_id in requestIDs:
@@ -419,18 +424,13 @@ class JSOCClient(object):
 
             if u.status_code == 200 and u.json()['status'] == '0':
                 for ar in u.json()['data']:
-                    is_file = os.path.isfile(os.path.join(path, ar['filename']))
-                    if overwrite or not is_file:
-                        url_dir = BASE_DL_URL + u.json()['dir'] + '/'
-                        urls.append(urlparse.urljoin(url_dir, ar['filename']))
-
+                    if overwrite or not os.path.isfile(os.path.join(path, ar['filename'])):
+                        urls.append(urlparse.urljoin(BASE_DL_URL + u.json()['dir'] +
+                                                     '/', ar['filename']))
                     else:
-                        print_message = "Skipping download of file {} as it " \
-                                        "has already been downloaded"
-                        print(print_message.format(ar['filename']))
+                        print("Skipping download of file {} as it has already been downloaded".format(ar['filename']))
                         # Add the file on disk to the output
                         results.map_.update({ar['filename']:{'path':os.path.join(path, ar['filename'])}})
-
                 if progress:
                     print_message = "{0} URLs found for download. Totalling {1}MB"
                     print(print_message.format(len(urls), u.json()['size']))
@@ -592,7 +592,7 @@ class JSOCClient(object):
         else:
             return astropy.table.Table()
 
-    def _multi_request(self, **kwargs):
+    def _multi_request(self, notify='', **kwargs):
         """
         Make a series of requests to avoid the 100GB limit
         """
@@ -627,4 +627,12 @@ class JSOCClient(object):
         u = requests.get(JSOC_EXPORT_URL, params=payload)
 
         return u
+
+    @classmethod
+    def _can_handle_query(cls, *query):
+        chkattr = ['Series', 'Protocol', 'Notify', 'Compression', 'Wavelength',
+                   'Time', 'Segment', 'Instrument']
+        return all([x.__class__.__name__ in chkattr for x in query])
+
+
 
