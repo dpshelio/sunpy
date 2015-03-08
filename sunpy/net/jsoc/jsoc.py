@@ -15,8 +15,7 @@ from astropy.utils.misc import isiterable
 
 from sunpy import config
 from sunpy.time import parse_time, TimeRange
-from sunpy.net.download import Downloader
-from sunpy.net.vso.vso import Results
+from sunpy.net.download import Downloader, Results
 from sunpy.net.attr import and_
 from sunpy.net.jsoc.attrs import walker
 
@@ -213,7 +212,7 @@ class JSOCClient(object):
 
         return return_results
 
-    def request_data(self, jsoc_response, notify='', **kwargs):
+    def request_data(self, jsoc_response, **kwargs):
         """
         Request that JSOC stages the data for download.
 
@@ -221,9 +220,6 @@ class JSOCClient(object):
         ----------
         jsoc_response : JSOCResponse object
             The results of a query
-
-        notify : `str`
-            An email address for the query
 
         Returns
         -------
@@ -238,7 +234,7 @@ class JSOCClient(object):
             raise TypeError(warn_message.format(kwargs.keys()))
 
         # Do a multi-request for each query block
-        responses = self._multi_request(notify, **jsoc_response.query_args)
+        responses = self._multi_request(**jsoc_response.query_args)
         for i, response in enumerate(responses):
             if response.status_code != 200:
                 warn_message = "Query {0} retuned code {1}"
@@ -525,6 +521,10 @@ class JSOCClient(object):
         kwargs.pop('wavelength', None)
         kwargs.pop('sample',None)
 
+        if not notify:
+            raise ValueError("JSOC queries now require a valid email address "
+                             "before they will be accepted by the server")
+
         # Build full POST payload
         payload = {'ds': dataset,
                    'format': 'json',
@@ -592,7 +592,7 @@ class JSOCClient(object):
         else:
             return astropy.table.Table()
 
-    def _multi_request(self, notify='', **kwargs):
+    def _multi_request(self, **kwargs):
         """
         Make a series of requests to avoid the 100GB limit
         """
@@ -631,8 +631,7 @@ class JSOCClient(object):
     @classmethod
     def _can_handle_query(cls, *query):
         chkattr = ['Series', 'Protocol', 'Notify', 'Compression', 'Wavelength',
-                   'Time', 'Segment', 'Instrument']
+                   'Time', 'Segment']
+
         return all([x.__class__.__name__ in chkattr for x in query])
-
-
 

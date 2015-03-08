@@ -48,7 +48,7 @@ class Notify(_VSOSimpleAttr):
             raise ValueError("Notify attribute must contain an '@' symbol "
                              "to be a valid email address")
         self.value = value
-
+    pass
 
 class Compression(_VSOSimpleAttr):
     """
