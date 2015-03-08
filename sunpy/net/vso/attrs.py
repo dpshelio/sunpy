@@ -55,19 +55,42 @@ class _Range(object):
         return self.min <= other.min and self.max >= other.max
 
 
-class Wave(Attr, _Range):
-    def __init__(self, wavemin, wavemax):
+class Wavelength(Attr, _Range):
+    def __init__(self, wavemin, wavemax=None):
+        """
+        Specifies the wavelength or spectral energy range of the detector.
+
+        Parameters
+        ----------
+        wavemin : `~astropy.units.Quantity`
+            The lower bounds of the range.
+
+        wavemax : `~astropy.units.Quantity`
+            The upper bound of the range, if not specified it will default to
+            the lower bound.
+
+        Notes
+        -----
+        The VSO understands the 'wavelength' in one of three units, Angstroms,
+        kHz or keV. Therefore any unit which is directly convertable to these
+        units is valid input
+        """
+
+        if not wavemax:
+            wavemax = wavemin
+
         if not all(isinstance(var, u.Quantity) for var in [wavemin, wavemax]):
             raise TypeError("Wave inputs must be astropy Quantities")
 
         # VSO just accept inputs as Angstroms, kHz or keV, the following
         # converts to any of these units depending on the spectral inputs
-        # Note: the website asks for GHz, however it seems that using GHz
-        # produces weird responses on VSO.
-        convert = {'m': u.AA, 'Hz': u.kHz, 'eV': u.keV}
-        for k in convert.keys():
-            if wavemin.decompose().unit == (1 * u.Unit(k)).decompose().unit:
-                unit = convert[k]
+        # Note: the website asks for GHz, however it seems that using GHz produces
+        # weird responses on VSO.
+        supported_units = [u.AA, u.kHz, u.keV]
+        for unit in supported_units:
+            if not wavemin.unit.is_equivalent(unit):
+                unit = None
+
         try:
             self.min, self.max = sorted(
                 value.to(unit) for value in [wavemin, wavemax]
@@ -86,6 +109,8 @@ class Wave(Attr, _Range):
                                                       self.max.value,
                                                       self.unit)
 
+# Alias for backwards compatitibily
+Wave = Wavelength
 
 class Time(Attr, _Range):
     """
@@ -183,6 +208,9 @@ class Source(_VSOSimpleAttr):
 
 
 class Instrument(_VSOSimpleAttr):
+    """
+    Specifies the Instrument to search for data for.
+    """
     pass
 
 
