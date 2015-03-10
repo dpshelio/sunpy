@@ -44,7 +44,7 @@ class downloadresponse(list):
 
         super(downloadresponse, self).__init__(lst)
 
-    def wait(self):
+    def wait(self, progress=True):
         """
         Waits for all files to download completely and then return.
         Returns
@@ -53,7 +53,7 @@ class downloadresponse(list):
         """
         filelist = []
         for resobj in self:
-            filelist.extend(resobj.wait())
+            filelist.extend(resobj.wait(progress=progress))
 
         return filelist
 
@@ -112,10 +112,10 @@ class UnifiedDownloaderFactory(BasicRegistrationFactory):
         ----------
         qr : UnifiedResponse Object
             Container returned by query method.
-        
+
         wait : `bool`
             fetch will wait until the download is complete before returning.
-        
+
         progress : `bool`
             Show a progress bar while the download is running.
 
@@ -135,7 +135,7 @@ class UnifiedDownloaderFactory(BasicRegistrationFactory):
             reslist.append(block.client.get(block, **kwargs))
 
         results = downloadresponse(reslist)
-        
+
         if wait:
             return results.wait(progress=progress)
         else:

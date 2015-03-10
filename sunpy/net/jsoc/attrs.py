@@ -58,8 +58,8 @@ class Compression(_VSOSimpleAttr):
     """
     pass
 
-walker = AttrWalker()
 
+walker = AttrWalker()
 
 @walker.add_creator(AttrAnd, _VSOSimpleAttr, Time, Wavelength)
 def _create(wlk, query):
@@ -90,8 +90,8 @@ def _apply2(wlk, query, imap):
 
 @walker.add_applier(Wavelength)
 def _apply(wlk, query, imap):
-    if assert_quantity_allclose(query.min, query.max):
-        imap['wavelength'] = query.min.to(u.AA, equivalencies=u.spectral()).value
+    if query.min == query.max:
+        imap['wavelength'] = query.min.to(u.AA, equivalencies=u.spectral())
     else:
         raise ValueError('Minimum and Maximum wavelength have to be identical for JSOC queries.')
 
