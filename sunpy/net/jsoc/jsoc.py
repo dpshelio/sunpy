@@ -189,7 +189,6 @@ class JSOCClient(object):
         for block in walker.create(query):
             iargs = kwargs.copy()
             iargs.update(block)
-
             return_results.append(self._lookup_records(iargs))
 
             return_results.query_args.append(iargs)
@@ -460,16 +459,20 @@ class JSOCClient(object):
                    wavelength = [int(np.ceil(wave.to(u.AA).value)) for wave in wavelength]
                    wavelength = str(wavelength)
                else:
-                   wavelength = '[{0}]'.format(int(np.ceil(wavelength.to(u.AA).value)))
+                   wavelength = '[WAVELNTH={0}]'.format(int(np.ceil(wavelength.to(u.AA).value)))
 
         # Extract and format segment
         if segment != '':
-            segment = '{{{segment}}}'.format(segment=segment)
+            segment = '{{{segment}}}'.format(segment=segment) # CHECK: not in [ ]?
 
-        dataset = '{series}[{start}-{end}]{wavelength}{segment}'.format(
+        dataset = '{series}[T_REC={start}-{end}]{wavelength}{segment}'.format(
                    series=series, start=start_time.strftime("%Y.%m.%d_%H:%M:%S_TAI"),
                    end=end_time.strftime("%Y.%m.%d_%H:%M:%S_TAI"),
                    wavelength=wavelength, segment=segment)
+
+        if kwargs:
+            for key in kwargs.keys():
+                dataset += '[{k}={value}]'.format(k=key,value=kwargs[key])
 
         return dataset
 
