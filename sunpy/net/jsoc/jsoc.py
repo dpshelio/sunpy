@@ -233,6 +233,7 @@ class JSOCClient(object):
             warn_message = "request_data got unexpected keyword arguments {0}"
             raise TypeError(warn_message.format(kwargs.keys()))
 
+        # Do a multi-request for each query block
         responses = []
         requestIDs = []
         for block in jsoc_response.query_args:
@@ -240,14 +241,17 @@ class JSOCClient(object):
             responses.append(self._multi_request(**block))
             for i, response in enumerate(responses[-1]):
                 if response.status_code != 200:
+                    warn_message = "Query {0} retuned code {1}"
                     warnings.warn(
-                    Warning("Query {0} retuned code {1}".format(i, response.status_code)))
-                    responses[-1].pop(i)
+                        Warning(warn_message.format(i, response.status_code)))
+                    responses.pop(i)
                 elif response.json()['status'] != 2:
-                    warnings.warn(
-                    Warning("Query {0} retuned status {1} with error {2}".format(i,
-                                                         response.json()['status'],
-                                                        response.json()['error'])))
+                    warn_message = "Query {0} retuned status {1} with error {2}"
+                    json_response = response.json()
+                    json_status = json_response['status']
+                    json_error = json_response['error']
+                    warnings.warn(Warning(warn_message.format(i, json_status,
+                                                            json_error)))
                     responses[-1].pop(i)
 
             # Extract the IDs from the JSON
