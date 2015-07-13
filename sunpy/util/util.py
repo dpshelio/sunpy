@@ -13,7 +13,7 @@ from sunpy.extern.six.moves import map, zip
 __all__ = ['to_signed', 'unique', 'print_table',
            'replacement_filename', 'goes_flare_class', 'merge', 'common_base',
            'minimal_pairs', 'polyfun_at', 'expand_list',
-           'expand_list_generator', 'Deprecated', 'savitzky_golay']
+           'expand_list_generator', 'Deprecated']
 
 
 def to_signed(dtype):
