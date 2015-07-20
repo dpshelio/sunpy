@@ -42,9 +42,10 @@ def read_vsop87(filename='vsop87/VSOP87D.ear'):
 # TAU = JDE - 2451... / 36520 (32.1)
 # Each term: A * cos(B + C*tau)
 # B and C in radians
-# A in 1e-8 radians for long and lat
-#      1e-8 AU for rad vector
-# L = (L0 + L1*tau + L2*tau**2 ... L5*tau**5)/1e8 (32.2)
+# A in radians for long and lat
+#      AU for rad vector
+# L = (L0 + L1*tau + L2*tau**2 ... L5*tau**5) (32.2)
+# (1e-8 factor is not applied for the vsop files)
 
 # to put it in FK5 reference
 # T = 10*tau
@@ -54,3 +55,11 @@ def read_vsop87(filename='vsop87/VSOP87D.ear'):
 #   (but I have a more detailed one).
 
 # Accuracy of the results based on when the series is truncated (pag220)
+
+def X(T,A,B,C):
+    return np.sum(A * np.cos(B + C*T))
+
+def parameters(L, T):
+    return np.array([X(T, **L[key]) * eval(key[1:]) for key in L.keys()]).sum()
+#    return X(T, **L['*T**0']) + X(T, **L['*T**1']) * T
+

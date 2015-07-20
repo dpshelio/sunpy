@@ -27,9 +27,11 @@ import numpy as np
 import astropy.units as u
 import astropy.time
 from astropy.coordinates import Angle, Longitude, Latitude
+from astropy.io import ascii
 
 from sunpy.time import parse_time, julian_day, julian_centuries
 from sunpy.sun import constants
+from sunpy.sun import vsop87
 
 __all__ = ["print_params"
            ,"heliographic_solar_center"
@@ -155,7 +157,7 @@ def geometric_mean_longitude(t='now'):
     """
     T = julian_centuries(t)
     #Eq 25.2
-    gm_long = np.array([280.46646, 36000.76983, 0.0003032]) * u.deg
+    gm_long = np.array([280.46646, 36000.76983, 0.0003032]) * u.deg # Page 144 less terms
     gm_long *= T ** np.arange(3)
     #TODO: High accuracy?
     return Longitude(gm_long.sum())
@@ -172,13 +174,18 @@ def equation_of_center(t='now'):
     #TODO: is it highaccuracy?
     return Angle(result)
 
-def true_longitude(t='now'):
+def true_longitude(t='now', high_precission=False):
     """Returns the Sun's true geometric longitude (in degrees) 
     (Refered to the mean equinox of date.  Question: Should the higher
     accuracy terms from which app_long is derived be added to true_long?)"""
-    #p.164
-    result = geometric_mean_longitude(t) + equation_of_center(t)
-    # Should we use p166 (VSOP87 or FK5)
+    if high_precission: # p.166
+        # tau  = Julian millennia rom epoch J2000
+        tau = julian_centuries(t)/10. # 32.1 
+        vsop87_earth = vsop87.read_vsop87('VSOP87D.ear')
+        EarthL = vsop87.parameters(vsop87_earth['L'], tau) * u.rad
+        result = (EarthL + (np.pi * u.rad)).to(u.deg)
+    else: # p.164
+        result = geometric_mean_longitude(t) + equation_of_center(t)
     return Longitude(result)
 
 def true_anomaly(t='now'):
@@ -187,14 +194,21 @@ def true_anomaly(t='now'):
     result = mean_anomaly(t) + equation_of_center(t)
     return Angle(result)
 
-def sunearth_distance(t='now'):
+def sunearth_distance(t='now', high_precission=False):
     """Returns the Sun Earth distance (AU).
     #TODO: There are a set of higher 
     accuracy terms not included here.
-    Eq 25.5 """  
-    ta = true_anomaly(t)
-    e = eccentricity_SunEarth_orbit(t)
-    result = 1.000001018 * (1.0 - e ** 2) / (1.0 + e * np.cos(ta))
+    Eq 25.5 """
+    if high_precission: # p.166
+        # tau  = Julian millennia rom epoch J2000
+        tau = julian_centuries(t)/10. # 32.1 
+        vsop87_earth = vsop87.read_vsop87('VSOP87D.ear')
+        EarthR = vsop87.parameters(vsop87_earth['R'], tau)
+        result = EarthR
+    else: # p.164
+        ta = true_anomaly(t)
+        e = eccentricity_SunEarth_orbit(t)
+        result = 1.000001018 * (1.0 - e ** 2) / (1.0 + e * np.cos(ta))
     return result * u.AU
 
 def _omega(t='now'):
@@ -203,41 +217,48 @@ def _omega(t='now'):
     '''
     T = julian_centuries(t)
     # Omega: p164
-    return (125.04  - 1934.136 * T) * u.deg
+    return (125.04452 - 1934.136261 * T) * u.deg#(125.04  - 1934.136 * T) * u.deg
+    # also, p144: 125.04452 - 1934.136261 * T + 0.0020708 * T ** 2 + (T ** 3 / 450000)
+    # Longitude of the ascending node of the Moon's mean orbit on the ecliptic,
+    # measured from the mean equinox of the date.
 
 def apparent_longitude(t='now', high_precission=False):
     """Returns the apparent longitude of the Sun.
     This includes the effects of nutation and aberration 
     to the true ('geometric') longituded of the Sun."""
-    # p. 167
-    # * Nutation: Add \sun longitude the nutation in long \delta\psi (Ch22)
-    # ToDo: find!
-    # * Aberration: Apply to \sun longitude the correction:
-    # - 20.4898 * u.arcsecs / R
-    # The numerator = constant of aberration (k=20.49552 *u.arcsecs)
-    #                 * a(1-e**2) = eq. 25.10
-    # It varies very slowly
-    # Note, Above: it does not assume perturbations in the orbit (mainly by
-    #       the moon => result's error <= 0.01 arcseconds
-    # --High accuracy--
-    # * Aberration: 
-    # - 0.005775518 R \delta\lambda (25.11)
-    #   the numerical const: light-time for unit distance, in days (=8.3 min).
-    #   \deltlambda (J2000.0) = sun_geocentric_daily_variation
-    # most important periodic terms have been retained => err < 0.1 arcsecs
-    #  If this result is used for 25.11 => err < 0.001 arcsecs
-    
     T = julian_centuries(t)
-    true_long = true_longitude(t)
+    true_long = true_longitude(t, high_precission)
     if high_precission:
-        nutation = 0 #ToDo CH22
-        R = sunearth_distance(t)
-        aberration = -0.005775518 * R * sun_geocentric_daily_variation(t)
+        R = sunearth_distance(t, high_precission)
+        # p. 167
+        # * Nutation: Add \sun longitude the nutation in long \delta\psi (Ch22)
+        nutation = nutation_in_longitude(t)
+
+        # * Aberration: Apply to \sun longitude the correction:
+        # - 20.4898 * u.arcsecs / R
+        # The numerator = constant of aberration (k=20.49552 *u.arcsecs)
+        #                 * a(1-e**2) # eq. 25.10
+        # It varies very slowly
+        e = eccentricity_SunEarth_orbit(t)
+        k = - 20.49552 * u.arcsec # constant of aberration
+        aberration =  k * 1.000001018 * u.AU * (1.0 - e ** 2) / R # 25.10
+        # Note, Above: it does not assume perturbations in the orbit (mainly by
+        #       the moon => result's error <= 0.01 arcseconds
+
+        # --Very High accuracy-- Not the case when Appendix III is used (ie. VSOP87)
+        #       - 0.005775518 R \delta\lambda (25.11)
+        #   the numerical const: light-time for unit distance, in days (=8.3 min).
+        #   \deltlambda (J2000.0) = sun_geocentric_daily_variation
+        # most important periodic terms have been retained => err < 0.1 arcsecs
+        #  If this result is used for 25.11 => err < 0.001 arcsecs
+        #aberration = -0.005775518 * R * sun_geocentric_daily_variation(t) # 25.11
+
+        # I don't know what to do...  As we are using VSOP87.. Let's try with 0
         result = true_long + nutation + aberration
     else:
         # true longitud corrected for nutation and abberration
-        nut_aber_cor = (- 0.00569 - 0.00478 * np.sin(_omega(t))) * u.deg
-        result = true_long + nut_aber_cor
+        nut_aber_cor = (0.00569 + 0.00478 * np.sin(_omega(t))) * u.deg
+        result = true_long - nut_aber_cor
     return Longitude(result)
 
 def sun_geocentric_daily_variation(t='now', mean_equinox=False):
@@ -304,7 +325,12 @@ def true_latitude(t='now', high_precission=False): # pylint: disable=W0613
     '''Returns the true latitude. Never more than 1.2 arcsec from 0,
     set to 0 here.'''
     if high_precission:
-        return Latitude(0.0, u.deg) #FIXME
+        # tau  = Julian millennia rom epoch J2000
+        tau = julian_centuries(t)/10. # 32.1 
+        vsop87_earth = vsop87.read_vsop87('VSOP87D.ear')
+        EarthLat = vsop87.parameters(vsop87_earth['B'], tau) * u.rad
+        result = -EarthLat
+        return Latitude(result.to(u.degree))
     else:
         return Latitude(0.0, u.deg) #p164
 
@@ -344,17 +370,55 @@ def true_obliquity_of_ecliptic(t='now'):
     #   mean equinox of the date.
     #   Terms above T**2 have been dropt
     omega = lambda tx: (125.04452 - 1934.136261 * tx) * u.deg
-    nutation_in_obliquity = [ +9.20 * np.cos(omega(T)),
-                              +0.57 * np.cos(2 * Lsun),
-                              +0.10 * np.cos(2 * Lmoon),
-                              -0.09 * np.cos(2 * omega(T))] * u.arcsec
+    nutation_in_obliquity = np.array([ +9.20 * np.cos(omega(T)), # FIXME: there's a _omega(t)
+                                       +0.57 * np.cos(2 * Lsun),
+                                       +0.10 * np.cos(2 * Lmoon),
+                                       -0.09 * np.cos(2 * omega(T))]) * u.arcsec
 
     result = mean_ob + nutation_in_obliquity.sum()
+    print result
     return Angle(result)
+
+def nutation_in_longitude(t='now', high_precission=False):
+    T = julian_centuries(t)
+    if high_precission:
+        D = (297.85036 + 445267.111480 * T - 0.0019142 * T**2 + T**3/189474) * u.deg
+        M = (357.52772 + 35999.050340 * T - 0.0001603 * T**2 - T**3/300000) * u.deg
+        Mprime = (134.96298 + 477198.867398 * T + 0.0086972 * T**2 + T**3/56250) * u.deg
+        F = (93.27191 + 483202.017538 * T - 0.0036825 * T**2 + T**3/327270) * u.deg
+        Omega = (125.04452 - 1934.136261 * T + 0.0020708 * T**2 + T**3/450000) * u.deg
+        #download http://hpiers.obspm.fr/eop-pc/models/nutations/nut_IAU1980.dat
+        parameters = ascii.read('nut_IAU1980.dat')
+        # col1 = mean anomaly of the moon Mprime
+        # col2 = mean anomaly of the Sun (Earth) M
+        # col3 = Moon's argument of latitude F
+        # col4 = Mean elongation of the Moon from the Sun D
+        # col5 = Longitude of the ascending node of the Moon's mean orbit on the ecliptic Omega
+        # col7 = coef of the sine  of the arguments \psi [0.0001 * u.arcsec]
+        # col8 = \psi delta
+        # col9 = coef of the cosine of the argument \epsilon [0.0001 * u.arcsec]
+        # col10 = \epsilon delta
+        print('D = {}, M  = {}, M\' = {}, F = {}, Omega = {} '.format(D, M, Mprime, F, Omega))
+        nutation_in_longitude = (parameters['col7'] + parameters['col8'] * T)*np.sin(D * parameters['col4'] + M * parameters['col2'] + Mprime * parameters['col1'] + F * parameters['col3'] + Omega * parameters['col5']) * 0.0001
+    else:
+        # p144 - accuracy of 0.5 u.arcsec 
+        Lsun = geometric_mean_longitude(t)
+        Lmoon = (218.3165 + 481267.8813 * T) * u.deg
+        # Omega:
+        omega = lambda tx: (125.04452 - 1934.136261 * tx + 0.0020708 * tx**2 + tx**3/450000) * u.deg
+        nutation_in_longitude = np.array([ -17.20 * np.sin(omega(T)), # FIXME: there's a _omega(t); Oh dear, which one to use?
+                                           -1.32 * np.sin(2 * Lsun),
+                                           -0.23 * np.sin(2 * Lmoon),
+                                           +0.21 * np.sin(2 * omega(T))])
+    return nutation_in_longitude.sum() * u.arcsec
+
 
 def true_rightascension(t='now', high_precission=False):
     '''
     Low-precission: comes from 25.6
+     "Due to the actions of the Moon and the planets, the Sun's latitude is not
+      exactly zero. Referred to the ecliptic of the date, it never exceeds 1.2 arcsecs.
+      Unless high accuracy is required, this latitude may be put equal to zero."
     '''
     if high_precission:
         return 0.0 #FIXME
@@ -367,6 +431,7 @@ def true_rightascension(t='now', high_precission=False):
 def true_declination(t='now', high_precission=False):
     '''
     Low-precission: comes from 25.7
+      See notes on true_rightascension.
     '''
     if high_precission:
         return 0.0 #FIXME
@@ -389,6 +454,8 @@ def apparent_rightascension(t='now', high_precission=False):
     '''
     Returns the apparent right ascenscion of the Sun.
     Low-precission: comes from 25.6
+     " If the apparent position of the Sun is required, then true right ascension
+      should use apparent longitude and obliquity should be corrected."
     '''
     if high_precission:
         return 0.0 #fixme
@@ -402,6 +469,7 @@ def apparent_declination(t='now', high_precission=False):
     '''
     Returns the apparent declination of the Sun.
     Low-precission: comes from 25.7
+      See notes on apparent_rightascension.
     '''
     if high_precission:
         return 0.0 #FIXME
@@ -417,9 +485,9 @@ def longitude_ascending_node(t='now'):
     the ecliptic.
 
     Astronomical Algorithms 2nd Ed. - Jean Meeus 2005  - ISBN: 0-943396-61-1
+    p 190
     """
-    ut = astropy.time.Time(parse_time(t), scale = 'utc')
-    jd_ephem = ut.tt.jd
+    jd_ephem = astropy.time.Time(parse_time(t), scale = 'utc').tt.jd
     k = 73.6667 * u.deg + 1.3958333 * u.deg * (jd_ephem - 2396758)/36525
     return Longitude(k)
     
@@ -441,10 +509,13 @@ def solar_north(t='now'):
 
 def heliographic_solar_center(t='now'):
     """Returns the position of the solar center in heliographic coordinates."""
-    jd = julian_day(t)
+    jd_ephem = astropy.time.Time(parse_time(t), scale = 'utc').tt.jd
     T = julian_centuries(t)
     # Heliographic coordinates in degrees
-    theta = ((jd - 2398220)*360/25.38) * u.deg
+    theta = (jd_ephem - 2398220) / 25.38 * 360 * u.deg
+    # 25.38 is the Sun's sideral period of rotation in days
+    # Fixed conventionally by Carrington
+    
     i = constants.constant('inclination solar equator')
     k = (74.3646 + 1.395833 * T) * u.deg
     lamda = true_longitude(t) - 0.00569 * u.deg

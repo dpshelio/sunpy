@@ -5,12 +5,14 @@ from numpy.testing import assert_array_almost_equal
 from itertools import product
 import datetime
 
+import numpy as np
 from astropy.coordinates import Longitude, Angle
 from astropy import units as u
 from astropy.time import Time
 
 from sunpy.sun import sun
 from sunpy.time import parse_time, julian_centuries
+from sunpy.sun import vsop87
 
 def test_sunearth_distance():
     # Source for these values
@@ -151,8 +153,25 @@ def test_solar_north():
     assert_array_almost_equal(sun.solar_north("2019/10/10"), -1.693 * u.deg, decimal=3)
     assert_array_almost_equal(sun.solar_north("2542/02/20"), 41.351 * u.deg, decimal=3)
 
+def test_eccentricity_SunEarth_orbit():
+    ''' Test low accuracy eccentricity values as shown
+    in page 164 of Meeus as the numerator of the radius
+    vector calculation - EQ. 25.5
+    '''
+    values = {'1800': 0.9997190,
+              '1900': 0.9997204,
+              '2000': 0.9997218,
+              '2100': 0.9997232}
+    for year, val in values.iteritems():
+        date = Time('{}-01-01T00:00:00'.format(year), scale='tt').utc
+        t = date.value
+        eccent = sun.eccentricity_SunEarth_orbit(t)
+        R_numerator = 1.000001018 * (1 - eccent**2)
+        assert_array_almost_equal(R_numerator, val, decimal=6)
+ 
+@pytest.mark.this
 def test_SunPosition():
-    # Example 25.a
+    ''' this test runs the example 25.a in page 165 of Meeus' book '''
     date = Time('1992-10-13T00:00:00', scale='tt').utc
     t = date.value
     assert_array_almost_equal(julian_centuries(t), -0.072183436, decimal=10)
@@ -164,9 +183,38 @@ def test_SunPosition():
     assert_array_almost_equal(sun.sunearth_distance(t).value, (0.99766 * u.AU).value, decimal=5)
     assert_array_almost_equal(sun._omega(t).value, (264.65 * u.deg).value, decimal=2)
     assert_array_almost_equal(sun.apparent_longitude(t).value, Longitude(199.90895 * u.deg).value, decimal=5)
-    #assert_array_almost_equal(sun.#22.2, 23.44023 * u.deg,decimal=5)
-    assert_array_almost_equal(sun.true_obliquity_of_ecliptic(t).value, (23.43999 * u.deg).value, decimal=4) #fixme This should be 5... but doesn't match - maybe we need terms from Table 22.A in obliquity?
+    #assert_array_almost_equal(sun.#22.2, 23.44023 * u.deg,decimal=5) #FIXME!
+    assert_array_almost_equal(sun.true_obliquity_of_ecliptic(t).value, (23.43999 * u.deg).value, decimal=4) #fixme  -- This should be 5... but doesn't match - maybe we need terms from Table 22.A in obliquity?
     assert_array_almost_equal(sun.apparent_rightascension(t).value, Angle('13 13 31.4 hours').value, decimal=5)
     assert_array_almost_equal(sun.apparent_declination(t).value, (-7.78507 * u.deg).value, decimal=4) #fixme This should be 5
     
     # How this compare with the real values given at the end of the example? high_precission=True?
+
+@pytest.mark.this
+def test_SunPosition_VSOP87():
+    ''' this test suppose to runs the examples in 25.a in page 165 of Meeus' book 
+    However, the values were a bit different, possible due to the precission used
+    in the book (less terms than in here).  We have compared therefore with the 
+    values obtained by using the example.f file available online:
+    ftp://ftp.imcce.fr/pub/ephem/planets/vsop87/vsop87.f
+    '''
+    date = Time('1992-10-13T00:00:00', scale='tt').utc
+    t = date.value
+    high_precission=True
+    assert_array_almost_equal(sun.true_longitude(t, high_precission).to(u.rad).value, (0.3474478820 + np.pi), decimal=10) # fixme no units compared
+    assert_array_almost_equal(sun.apparent_longitude(t, high_precission).to(u.arcsec).value, sun.true_longitude(t, high_precission).to(u.arcsec).value, decimal=10)
+    assert_array_almost_equal(sun.true_latitude(t, high_precission).to(u.rad).value, (0.0000036067), decimal=10)
+    assert_array_almost_equal(sun.sunearth_distance(t, high_precission).value, (0.9976085202 * u.AU).value, decimal=8)
+    # assert_array_almost_equal(sun.apparent_rightascension(t, high_precission).value, Angle('13 13 30.749 hours').value, decimal=6)
+    # assert_array_almost_equal(sun.apparent_declination(t, high_precission).value, ("7:47:01.74 degrees").value, decimal=6) #fixme This should be 5
+
+def test_VSOP87venus():
+    tau = -0.007032169747
+    # TODO: download venus file?
+    vsop87_venus = vsop87.read_vsop87('VSOP87D.ven')
+    VenusL = vsop87.parameters(vsop87_venus['L'], tau) * u.rad
+    VenusB = vsop87.parameters(vsop87_venus['B'], tau) * u.rad
+    VenusR = vsop87.parameters(vsop87_venus['R'], tau) * u.AU
+    assert_array_almost_equal(VenusL.value, -68.6592582, decimal=5)
+    assert_array_almost_equal(VenusB.value, -0.0457399, decimal=5)
+    assert_array_almost_equal(VenusR.value, 0.724603, decimal=6)
