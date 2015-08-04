@@ -5,11 +5,30 @@ import warnings
 import astropy.units as u
 from astropy.tests.helper import assert_quantity_allclose
 
-from sunpy.net.attr import AttrWalker, AttrAnd, AttrOr
-from sunpy.net.vso.attrs import Time, _VSOSimpleAttr, Wavelength
+from sunpy.net.attr import Attr, AttrWalker, AttrAnd, AttrOr
+from sunpy.net.vso.attrs import _VSOSimpleAttr
+from sunpy.net.vso.attrs import Time as vTime, Sample as vSample, Wavelength as vWavelength
 
 ###############################################################################
 # This is a horrific hack to make automodapi pick up these as jsoc attrs.
+
+
+class Time(vTime):
+    __doc__ = vTime.__doc__
+    pass
+
+
+class Sample(vSample):
+    __doc__ = vSample.__doc__
+    pass
+
+
+class Wavelength(vWavelength):
+    __doc__ = vWavelength.__doc__
+    pass
+
+###############################################################################
+
 
 class Series(_VSOSimpleAttr):
     """
