@@ -103,8 +103,9 @@ class NOAAIndicesLightCurve(LightCurve):
 
         figure.show()
         return figure
-
-    def _get_default_uri():
+        
+    @classmethod
+    def _get_default_uri(cls):
         """Return the url to download indices"""
         return "ftp://ftp.swpc.noaa.gov/pub/weekly/RecentIndices.txt"
 
