@@ -4,7 +4,6 @@ language: c
 
 os:
     - linux
-    - osx
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -42,27 +41,24 @@ env:
 
     matrix:
         - PYTHON_VERSION=2.7
-#        - PYTHON_VERSION=3.3
-#        - PYTHON_VERSION=3.4
-#        - PYTHON_VERSION=3.5
 
-matrix:
-    include:
-         - os: linux
-           env: NUMPY_VERSION=1.8.1
-         - os: linux
-           env: PANDAS_VERSION=0.15.2
-         - os: linux
-           env: TEST_MODE='astropy-dev'
-         - os: linux
-           env: TEST_MODE='sphinx'
-         - os: linux
-           env: TEST_MODE='online'
-         - os: linux
-           env: TEST_MODE='doctest'
-         - os: linux
-           env: PYTHON_VERSION=3.4
-           env: TEST_MODE='python3'
+# matrix:
+#     include:
+#          - os: linux
+#            env: NUMPY_VERSION=1.8.1
+#          - os: linux
+#            env: PANDAS_VERSION=0.15.2
+#          - os: linux
+#            env: TEST_MODE='astropy-dev'
+#          - os: linux
+#            env: TEST_MODE='sphinx'
+#          - os: linux
+#            env: TEST_MODE='online'
+#          - os: linux
+#            env: TEST_MODE='doctest'
+#          - os: linux
+#            env: PYTHON_VERSION=3.4
+#            env: TEST_MODE='python3'
 
 # If the online build fails, we don't want it to report the whole build broken.
     allow_failures:
@@ -85,25 +81,9 @@ install:
     - pip install pytest-cov coverage coveralls
     # Install sunpy conda packages
     - conda install -q --yes suds-jurko glymur
+    - python -c "import numpy as np; print(np.version.version)"
     # Install the correct version of astropy
     - if [[ $TEST_MODE != 'astropy-dev' ]]; then conda install -q --yes astropy>=0.4.0; fi
-    - if [[ $TEST_MODE == 'astropy-dev' ]]; then pip install git+git://github.com/astropy/astropy.git; fi
-    # Install sphinx if needed
-    - if [[ $TEST_MODE == 'sphinx' || $TEST_MODE == 'doctest' ]]; then conda install -q --yes sphinx; fi
-    - if [[ $TEST_MODE == 'sphinx' || $TEST_MODE == 'doctest' ]]; then python -c "import sunpy.data; sunpy.data.download_sample_data()"; fi
 
 script:
-    - if [[ $TEST_MODE == 'sphinx' ]]; then python setup.py build_sphinx -w; fi
-    - if [[ $TEST_MODE == 'offline' || $TEST_MODE == 'astropy-dev' ]]; then python setup.py test; fi
-    - if [[ $TEST_MODE == 'online' ]]; then python setup.py test --online --coverage --cov-report=html; fi
-    - if [[ $TEST_MODE == 'skip' ]]; then coveralls --rcfile='./sunpy/tests/coveragerc'; fi
-    - if [[ $TEST_MODE == 'doctest' ]]; then python setup.py build_sphinx -b doctest; fi
-    - if [[ $TEST_MODE == 'python3' ]]; then continuous-integration/python3.sh; fi
-
-
-# Notify the IRC channel of build status
-notifications:
-  irc: "chat.freenode.net#SunPy"
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/d1bf84e1bc1293e4dbc5
+    - if [[ $TEST_MODE == 'offline' || $TEST_MODE == 'astropy-dev' ]]; then python -c 'import numpy as np; print(np.version.version);'
