@@ -57,6 +57,10 @@ matrix:
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES2
 
          # Try on Linux
+         # Do sphinx first because it takes a long time.
+         - os: linux
+           env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx -w'
+                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES2
          - os: linux
            env: PYTHON_VERSION=2.7 SETUP_CMD='test'
                 CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES2
@@ -66,9 +70,6 @@ matrix:
          - os: linux
            env: PYTHON_VERSION=2.7 SETUP_CMD='test'
                 ASTROPY_VERSION='development' CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES2
-         - os: linux
-           env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx -w'
-                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES2
          - os: linux
            env: PYTHON_VERSION=2.7 SETUP_CMD='test --online --coverage --cov-report=html'
                 CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES2 PIP_DEPENDENCIES='pytest-cov'
