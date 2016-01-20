@@ -2,10 +2,6 @@
 # and running on OS/X dosen't work with Python.
 language: c
 
-# os:
-#      - linux
-#     - osx
-
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
