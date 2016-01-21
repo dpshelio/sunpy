@@ -94,7 +94,7 @@ install:
     - echo $PATH
     - echo $LD_LIBRARY_PATH
     - echo $CONDA_DEPENDENCIES
-    - git clone git://github.com/astropy/ci-helpers.git
+    - git clone git://github.com/astropy/ci-helpers.git -b disable-quiet
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
 
     # Download the sample data for the build of the documentation.
