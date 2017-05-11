@@ -74,7 +74,7 @@ matrix:
            env: SETUP_CMD='test --figure' CONDA_DEPENDENCIES=''
 
 install:
-    - git clone git://github.com/astropy/ci-helpers.git
+    - git clone -b miniconda23 git://github.com/dpshelio/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
     - source continuous-integration/travis/openjpeg.sh  # so glymur knows where to look
 
